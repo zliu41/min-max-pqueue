@@ -55,6 +55,7 @@ module Data.IntMinMaxQueue (
   , foldlWithPriority'
 
   -- * Lists
+  , elems
   , toList
   , toAscList
   , toDescList
@@ -279,24 +280,26 @@ mapWithPriority f (IntMinMaxQueue sz ms m) =
   IntMinMaxQueue sz ms (Map.mapWithKey (fmap . f) m)
 
 -- | Fold the elements in the map using the given right-associative
--- binary operator.
+-- binary operator, such that @'foldr' f z == 'Prelude.foldr' f z . 'elems'@.
 foldr :: (a -> b -> b) -> b -> IntMinMaxQueue a -> b
 foldr = foldrWithPriority . const
 
 -- | Fold the elements in the map using the given left-associative
--- binary operator.
+-- binary operator, such that @'foldl' f z == 'Prelude.foldl' f z . 'elems'@.
 foldl :: (a -> b -> a) -> a -> IntMinMaxQueue b -> a
 foldl = foldlWithPriority . (const .)
 
 -- | Fold the elements in the map using the given right-associative
--- binary operator.
+-- binary operator, such that
+-- @'foldrWithPriority' f z == 'Prelude.foldr' ('uncurry' f) z . 'toAscList'@.
 foldrWithPriority :: (Prio -> a -> b -> b) -> b -> IntMinMaxQueue a -> b
 foldrWithPriority f b (IntMinMaxQueue _ _ m) = Map.foldrWithKey f' b m
   where
     f' = flip . Foldable.foldr . f
 
 -- | Fold the elements in the map using the given left-associative
--- binary operator.
+-- binary operator, such that
+-- @'foldlWithPriority' f z == 'Prelude.foldr' ('uncurry' . f) z . 'toAscList'@.
 foldlWithPriority :: (a -> Prio -> b -> a) -> a -> IntMinMaxQueue b -> a
 foldlWithPriority f a (IntMinMaxQueue _ _ m) = Map.foldlWithKey f' a m
   where
@@ -314,7 +317,7 @@ foldr' = foldrWithPriority' . const
 foldl' :: (a -> b -> a) -> a -> IntMinMaxQueue b -> a
 foldl' = foldlWithPriority' . (const .)
 
--- | A strict version of 'foldrWithKey'. Each application of the
+-- | A strict version of 'foldrWithPriority'. Each application of the
 -- operator is evaluated before using the result in the next application.
 -- This function is strict in the starting value.
 foldrWithPriority' :: (Prio -> a -> b -> b) -> b -> IntMinMaxQueue a -> b
@@ -322,7 +325,7 @@ foldrWithPriority' f b (IntMinMaxQueue _ _ m) = Map.foldrWithKey' f' b m
   where
     f' = flip . Foldable.foldr . f
 
--- | A strict version of 'foldlWithKey'. Each application of the
+-- | A strict version of 'foldlWithPriority'. Each application of the
 -- operator is evaluated before using the result in the next application.
 -- This function is strict in the starting value.
 foldlWithPriority' :: (a -> Prio -> b -> a) -> a -> IntMinMaxQueue b -> a
@@ -330,25 +333,33 @@ foldlWithPriority' f a (IntMinMaxQueue _ _ m) = Map.foldlWithKey' f' a m
   where
     f' = flip (Foldable.foldl' . flip f)
 
--- | Fold the elements in the queue using the given monoid.
+-- | Fold the elements in the queue using the given monoid, such that
+-- @'foldMapWithPriority' f == 'Foldable.foldMap' (uncurry f) . 'elems'@.
 foldMapWithPriority :: Monoid m => (Prio -> a -> m) -> IntMinMaxQueue a -> m
 foldMapWithPriority f (IntMinMaxQueue _ _ m) =
   Map.foldMapWithKey (Foldable.foldMap . f) m
+
+-- | Elements in the queue in ascending order of priority.
+-- Elements with the same priority are returned in no particular order.
+elems :: IntMinMaxQueue a -> [a]
+elems (IntMinMaxQueue _ _ m) = Foldable.foldMap Nel.toList m
 
 -- | An alias for 'toAscList'.
 toList :: IntMinMaxQueue a -> [(Prio, a)]
 toList = toAscList
 
--- | Convert a queue to a list in ascending order of priority.
+-- | Convert the queue to a list in ascending order of priority.
+-- Elements with the same priority are returned in no particular order.
 toAscList :: IntMinMaxQueue a -> [(Prio, a)]
 toAscList (IntMinMaxQueue _ _ m) =
   Map.toAscList m >>= uncurry (\prio -> fmap (prio,) . Nel.toList)
 
--- | Convert a queue to a list in descending order of priority.
+-- | Convert the queue to a list in descending order of priority.
+-- Elements with the same priority are returned in no particular order.
 toDescList :: IntMinMaxQueue a -> [(Prio, a)]
 toDescList (IntMinMaxQueue _ _ m) =
   Map.toDescList m >>= uncurry (\prio -> fmap (prio,) . Nel.toList)
 
--- | /O(n)/.
+-- | /O(n)/. Convert the queue to an 'IntMap'.
 toMap :: IntMinMaxQueue a -> IntMap (NonEmpty a)
 toMap (IntMinMaxQueue _ _ m) = m

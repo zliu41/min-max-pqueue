@@ -2,6 +2,7 @@
 
 module IntMinMaxQueueSpec where
 
+import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 
 import           Hedgehog
@@ -73,6 +74,21 @@ prop_insertWithMaxSize = property $ do
   let q' = q `PQ.withMaxSize` PQ.size q
   PQ.insert id maxBound q' === q'
   PQ.insert id minBound q' === PQ.insert id minBound (PQ.deleteMax q')
+
+prop_fold :: Property
+prop_fold = property $ do
+  q <- forAll genQueue
+  let f a s = show a ++ s
+      g = flip f
+      f' prio a s = show prio ++ show a ++ s
+      g' s prio a = f' prio a s
+      h prio a = show prio ++ show a
+  PQ.foldr f "" q === foldr f "" (PQ.elems q)
+  PQ.foldl g "" q === foldl g "" (PQ.elems q)
+  PQ.foldrWithPriority f' "" q === foldr (uncurry f') "" (PQ.toAscList q)
+  PQ.foldlWithPriority g' "" q === foldl (uncurry . g') "" (PQ.toAscList q)
+  Foldable.foldMap show q === Foldable.foldMap show (PQ.elems q)
+  PQ.foldMapWithPriority h q === Foldable.foldMap (uncurry h) (PQ.toAscList q)
 
 dequeueAllAsc :: IntMinMaxQueue a -> [a]
 dequeueAllAsc = List.unfoldr PQ.pollMin
