@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 799dc1fd9e3679fcbc272d7fd7c5b9a8d70c4f6bd089125765b2197a6fb88b61
+-- hash: 4e04fc9e4049925c16abdce6bbcb1124332df06d3236a6bf699e310f56c1b17c
 
 name:           min-max-pqueue
 version:        0.1.0.0
@@ -43,6 +43,7 @@ test-suite hedgehog
   main-is: Main.hs
   other-modules:
       IntMinMaxQueueSpec
+      MinMaxQueueSpec
       Paths_min_max_pqueue
   hs-source-dirs:
       test/hedgehog
