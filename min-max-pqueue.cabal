@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2a96961ab8fd0d7c05055603120b6ea5062e53c3fad2132e6f6d2ff098c96bfb
+-- hash: 799dc1fd9e3679fcbc272d7fd7c5b9a8d70c4f6bd089125765b2197a6fb88b61
 
 name:           min-max-pqueue
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 library
   exposed-modules:
       Data.IntMinMaxQueue
+      Data.MinMaxQueue
   other-modules:
       Paths_min_max_pqueue
   hs-source-dirs:

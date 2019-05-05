@@ -2,10 +2,9 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
 
-module Data.IntMinMaxQueue (
-  -- * IntMinMaxQueue type
-    IntMinMaxQueue
-  , Prio
+module Data.MinMaxQueue (
+  -- * MinMaxQueue type
+    MinMaxQueue
 
   -- * Construction
   , empty
@@ -67,8 +66,8 @@ module Data.IntMinMaxQueue (
 import           Data.Data (Data)
 import qualified Data.Foldable as Foldable
 import           Data.Functor.Classes
-import           Data.IntMap.Strict (IntMap)
-import qualified Data.IntMap.Strict as Map
+import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import           Data.List.NonEmpty (NonEmpty(..), (<|))
 import qualified Data.List.NonEmpty as Nel
 
@@ -77,178 +76,187 @@ import qualified Prelude
 
 type Size = Int
 type MaxSize = Maybe Int
-type Prio = Int
 
--- | A double-ended priority queue whose elements are compared
--- on an 'Int' field.
-data IntMinMaxQueue a = IntMinMaxQueue {-# UNPACK #-} !Size !MaxSize !(IntMap (NonEmpty a))
+-- | A double-ended priority queue whose elements are of type @a@ and
+-- are compared on @prio@.
+data MinMaxQueue prio a = MinMaxQueue {-# UNPACK #-} !Size !MaxSize !(Map prio (NonEmpty a))
   deriving (Eq, Ord, Data)
 
-instance Eq1 IntMinMaxQueue where
-  liftEq eqv q1 q2 =
+instance Eq prio => Eq1 (MinMaxQueue prio) where
+  liftEq = liftEq2 (==)
+
+instance Eq2 MinMaxQueue where
+  liftEq2 eqk eqv q1 q2 =
     Map.size (toMap q1) == Map.size (toMap q2)
-      && liftEq (liftEq eqv) (toList q1) (toList q2)
+      && liftEq (liftEq2 eqk eqv) (toList q1) (toList q2)
 
-instance Ord1 IntMinMaxQueue where
-  liftCompare cmpv q1 q2 =
-    liftCompare (liftCompare cmpv) (toList q1) (toList q2)
+instance Ord prio => Ord1 (MinMaxQueue prio) where
+  liftCompare = liftCompare2 compare
 
-instance Show a => Show (IntMinMaxQueue a) where
+instance Ord2 MinMaxQueue where
+  liftCompare2 cmpk cmpv q1 q2 =
+    liftCompare (liftCompare2 cmpk cmpv) (toList q1) (toList q2)
+
+instance (Show prio, Show a) => Show (MinMaxQueue prio a) where
   showsPrec d q = showParen (d > 10) $
     showString "fromList " . shows (toList q)
 
-instance Show1 IntMinMaxQueue where
-  liftShowsPrec spv slv d m =
+instance Show prio => Show1 (MinMaxQueue prio) where
+  liftShowsPrec = liftShowsPrec2 showsPrec showList
+
+instance Show2 MinMaxQueue where
+  liftShowsPrec2 spk slk spv slv d m =
       showsUnaryWith (liftShowsPrec sp sl) "fromList" d (toList m)
     where
-      sp = liftShowsPrec spv slv
-      sl = liftShowList spv slv
+      sp = liftShowsPrec2 spk slk spv slv
+      sl = liftShowList2 spk slk spv slv
 
-instance Read a => Read (IntMinMaxQueue a) where
+instance (Ord prio, Read prio, Read a) => Read (MinMaxQueue prio a) where
   readsPrec p = readParen (p > 10) $ \r -> do
     ("fromList",s) <- lex r
     (xs,t) <- reads s
     pure (fromList xs,t)
 
-instance Read1 IntMinMaxQueue where
+instance (Ord prio, Read prio) => Read1 (MinMaxQueue prio) where
   liftReadsPrec rp rl = readsData $
       readsUnaryWith (liftReadsPrec rp' rl') "fromList" fromList
     where
       rp' = liftReadsPrec rp rl
       rl' = liftReadList rp rl
 
-instance Functor IntMinMaxQueue where
+instance Functor (MinMaxQueue prio) where
   fmap = map
 
-instance Foldable.Foldable IntMinMaxQueue where
+instance Foldable.Foldable (MinMaxQueue prio) where
   foldMap = foldMapWithPriority . const
 
 -- | /O(1)/. The empty queue.
-empty :: IntMinMaxQueue a
-empty = IntMinMaxQueue 0 Nothing Map.empty
+empty :: MinMaxQueue prio a
+empty = MinMaxQueue 0 Nothing Map.empty
 
 -- | /O(1)/. A queue with a single element.
-singleton :: (a -> Prio) -> a -> IntMinMaxQueue a
-singleton f a = IntMinMaxQueue 1 Nothing (Map.singleton (f a) (pure a))
+singleton :: (a -> prio) -> a -> MinMaxQueue prio a
+singleton f a = MinMaxQueue 1 Nothing (Map.singleton (f a) (pure a))
 
 -- | /O(n * log n)/. Build a queue from a list of (priority, element) pairs.
-fromList :: [(Prio, a)] -> IntMinMaxQueue a
+fromList :: Ord prio => [(prio, a)] -> MinMaxQueue prio a
 fromList = Foldable.foldr (uncurry (insert . const)) empty
 
 -- | /O(n * log n)/. Build a queue from a list of elements and a function
 -- from elements to priorities.
-fromListWith :: (a -> Prio) -> [a] -> IntMinMaxQueue a
+fromListWith :: Ord prio => (a -> prio) -> [a] -> MinMaxQueue prio a
 fromListWith f = Foldable.foldr (insert f) empty
 
 -- | /O(n)/ (due to calculating the queue size).
-fromMap :: IntMap (NonEmpty a) -> IntMinMaxQueue a
-fromMap m = IntMinMaxQueue (sum (fmap length m)) Nothing m
+fromMap :: Map prio (NonEmpty a) -> MinMaxQueue prio a
+fromMap m = MinMaxQueue (sum (fmap length m)) Nothing m
 
 -- | /O(1)/. Is the queue empty?
-null :: IntMinMaxQueue a -> Bool
+null :: MinMaxQueue prio a -> Bool
 null = (== 0) . size
 
 -- | /O(1)/. Is the queue non-empty?
-notNull :: IntMinMaxQueue a -> Bool
+notNull :: MinMaxQueue prio a -> Bool
 notNull = not . null
 
 -- | /O(1)/. The total number of elements in the queue.
-size :: IntMinMaxQueue a -> Int
-size (IntMinMaxQueue sz _ _) = sz
+size :: MinMaxQueue prio a -> Int
+size (MinMaxQueue sz _ _) = sz
 
 -- | Return a queue that is limited to the given number of elements.
 -- If the original queue has more elements than the size limit, the greatest
 -- elements will be dropped until the size limit is satisfied.
-withMaxSize :: IntMinMaxQueue a -> Int -> IntMinMaxQueue a
-withMaxSize q ms = IntMinMaxQueue sz (Just ms) m
-  where (IntMinMaxQueue sz _ m) = takeMin ms q
+withMaxSize :: Ord prio => MinMaxQueue prio a -> Int -> MinMaxQueue prio a
+withMaxSize q ms = MinMaxQueue sz (Just ms) m
+  where (MinMaxQueue sz _ m) = takeMin ms q
 
 -- | /O(1)/. The size limit of the queue, if exists.
-maxSize :: IntMinMaxQueue a -> Maybe Int
-maxSize (IntMinMaxQueue _ ms _) = max 0 <$> ms
+maxSize :: MinMaxQueue prio a -> Maybe Int
+maxSize (MinMaxQueue _ ms _) = max 0 <$> ms
 
 -- | /O(log n)/. Add the given element to the queue. If the queue has
 -- a size limit, and the insertion causes the queue to grow beyond
 -- its size limit, the greatest element will be removed from the
 -- queue, which may be the element just added.
-insert :: (a -> Prio) -> a -> IntMinMaxQueue a -> IntMinMaxQueue a
-insert f a q@(IntMinMaxQueue sz ms _) = case ms of
+insert :: Ord prio => (a -> prio) -> a -> MinMaxQueue prio a -> MinMaxQueue prio a
+insert f a q@(MinMaxQueue sz ms _) = case ms of
   Just ms' | sz >= ms' -> deleteMax (insert' f a q)
   _ -> insert' f a q
 
-insert' :: (a -> Prio) -> a -> IntMinMaxQueue a -> IntMinMaxQueue a
-insert' f a (IntMinMaxQueue sz ms m) = IntMinMaxQueue (sz+1) ms (Map.alter g (f a) m)
+insert' :: Ord prio => (a -> prio) -> a -> MinMaxQueue prio a -> MinMaxQueue prio a
+insert' f a (MinMaxQueue sz ms m) = MinMaxQueue (sz+1) ms (Map.alter g (f a) m)
   where
     g Nothing = Just (pure a)
     g (Just as) = Just (a <| as)
 
 -- | /O(log n)/. Retrieve the least element of the queue, if exists.
-peekMin :: IntMinMaxQueue a -> Maybe a
-peekMin (IntMinMaxQueue _ _ m) = Nel.head . snd <$> Map.lookupMin m
+peekMin :: Ord prio => MinMaxQueue prio a -> Maybe a
+peekMin (MinMaxQueue _ _ m) = Nel.head . snd <$> Map.lookupMin m
 
 -- | /O(log n)/. Retrieve the greatest element of the queue, if exists.
-peekMax :: IntMinMaxQueue a -> Maybe a
-peekMax (IntMinMaxQueue _ _ m) = Nel.head . snd <$> Map.lookupMax m
+peekMax :: Ord prio => MinMaxQueue prio a -> Maybe a
+peekMax (MinMaxQueue _ _ m) = Nel.head . snd <$> Map.lookupMax m
 
 -- | /O(log n)/. Remove the least element of the queue, if exists.
-deleteMin :: IntMinMaxQueue a -> IntMinMaxQueue a
-deleteMin q@(IntMinMaxQueue sz ms m)
-  | Just (prio,_) <- Map.lookupMin m = IntMinMaxQueue (sz-1) ms (Map.update (Nel.nonEmpty . Nel.tail) prio m)
+deleteMin :: Ord prio => MinMaxQueue prio a -> MinMaxQueue prio a
+deleteMin q@(MinMaxQueue sz ms m)
+  | Just (prio,_) <- Map.lookupMin m = MinMaxQueue (sz-1) ms (Map.update (Nel.nonEmpty . Nel.tail) prio m)
   | otherwise = q
 
 -- | /O(log n)/. Remove the greatest element of the queue, if exists.
-deleteMax :: IntMinMaxQueue a -> IntMinMaxQueue a
-deleteMax q@(IntMinMaxQueue sz ms m)
-  | Just (prio,_) <- Map.lookupMax m = IntMinMaxQueue (sz-1) ms (Map.update (Nel.nonEmpty . Nel.tail) prio m)
+deleteMax :: Ord prio => MinMaxQueue prio a -> MinMaxQueue prio a
+deleteMax q@(MinMaxQueue sz ms m)
+  | Just (prio,_) <- Map.lookupMax m = MinMaxQueue (sz-1) ms (Map.update (Nel.nonEmpty . Nel.tail) prio m)
   | otherwise = q
 
 -- | /O(log n)/. Remove and return the least element of the queue, if exists.
-pollMin :: IntMinMaxQueue a -> Maybe (a, IntMinMaxQueue a)
+pollMin :: Ord prio => MinMaxQueue prio a -> Maybe (a, MinMaxQueue prio a)
 pollMin q = (,) <$> peekMin q <*> pure (deleteMin q)
 
 -- | /O(log n)/. Remove and return the greatest element of the queue, if exists.
-pollMax :: IntMinMaxQueue a -> Maybe (a, IntMinMaxQueue a)
+pollMax :: Ord prio => MinMaxQueue prio a -> Maybe (a, MinMaxQueue prio a)
 pollMax q = (,) <$> peekMax q <*> pure (deleteMax q)
 
 -- | @'takeMin' n q@ returns a queue with the @n@ least elements in @q@, or
 -- @q@ itself if @n >= 'size' q@.
-takeMin :: Int -> IntMinMaxQueue a -> IntMinMaxQueue a
-takeMin n q@(IntMinMaxQueue sz ms m)
+takeMin :: Ord prio => Int -> MinMaxQueue prio a -> MinMaxQueue prio a
+takeMin n q@(MinMaxQueue sz ms m)
     | newSz >= sz = q
-    | newSz * 2 <= sz = IntMinMaxQueue newSz ms (take Map.lookupMin newSz m)
-    | otherwise = IntMinMaxQueue newSz ms (drop Map.lookupMax (sz - newSz) m)
+    | newSz * 2 <= sz = MinMaxQueue newSz ms (take Map.lookupMin newSz m)
+    | otherwise = MinMaxQueue newSz ms (drop Map.lookupMax (sz - newSz) m)
   where newSz = max 0 (min sz n)
 
 -- | @'takeMin' n q@ returns a queue with the @n@ greatest elements in @q@, or
 -- @q@ itself if @n >= 'size' q@.
-takeMax :: Int -> IntMinMaxQueue a -> IntMinMaxQueue a
-takeMax n q@(IntMinMaxQueue sz ms m)
+takeMax :: Ord prio => Int -> MinMaxQueue prio a -> MinMaxQueue prio a
+takeMax n q@(MinMaxQueue sz ms m)
     | newSz >= sz = q
-    | newSz * 2 <= sz = IntMinMaxQueue newSz ms (take Map.lookupMax newSz m)
-    | otherwise = IntMinMaxQueue newSz ms (drop Map.lookupMin (sz - newSz) m)
+    | newSz * 2 <= sz = MinMaxQueue newSz ms (take Map.lookupMax newSz m)
+    | otherwise = MinMaxQueue newSz ms (drop Map.lookupMin (sz - newSz) m)
   where newSz = max 0 (min sz n)
 
 -- | @'dropMin' n q@ returns a queue with the @n@ least elements
 -- dropped from @q@, or 'empty' if @n >= 'size' q@.
-dropMin :: Int -> IntMinMaxQueue a -> IntMinMaxQueue a
-dropMin n q@(IntMinMaxQueue sz ms m)
+dropMin :: Ord prio => Int -> MinMaxQueue prio a -> MinMaxQueue prio a
+dropMin n q@(MinMaxQueue sz ms m)
     | newSz >= sz = q
-    | newSz * 2 > sz = IntMinMaxQueue newSz ms (drop Map.lookupMin (sz - newSz) m)
-    | otherwise = IntMinMaxQueue newSz ms (take Map.lookupMax newSz m)
+    | newSz * 2 > sz = MinMaxQueue newSz ms (drop Map.lookupMin (sz - newSz) m)
+    | otherwise = MinMaxQueue newSz ms (take Map.lookupMax newSz m)
   where newSz = max 0 (min sz (sz - n))
 
 -- | @'dropMax' n q@ returns a queue with the @n@ greatest elements
 -- dropped from @q@, or 'empty' if @n >= 'size' q@.
-dropMax :: Int -> IntMinMaxQueue a -> IntMinMaxQueue a
-dropMax n q@(IntMinMaxQueue sz ms m)
+dropMax :: Ord prio => Int -> MinMaxQueue prio a -> MinMaxQueue prio a
+dropMax n q@(MinMaxQueue sz ms m)
     | newSz >= sz = q
-    | newSz * 2 > sz = IntMinMaxQueue newSz ms (drop Map.lookupMax (sz - newSz) m)
-    | otherwise = IntMinMaxQueue newSz ms (take Map.lookupMin newSz m)
+    | newSz * 2 > sz = MinMaxQueue newSz ms (drop Map.lookupMax (sz - newSz) m)
+    | otherwise = MinMaxQueue newSz ms (take Map.lookupMin newSz m)
   where newSz = max 0 (min sz (sz - n))
 
 take
-  :: (forall b. IntMap b -> Maybe (Int, b))
-  -> Int -> IntMap (NonEmpty a) -> IntMap (NonEmpty a)
+  :: Ord prio
+  => (forall b. Map prio b -> Maybe (prio, b))
+  -> Int -> Map prio (NonEmpty a) -> Map prio (NonEmpty a)
 take lookup n m = go 0 m Map.empty
   where
     go sz mIn mOut
@@ -262,8 +270,9 @@ take lookup n m = go 0 m Map.empty
       | otherwise = mOut
 
 drop
-  :: (forall b. IntMap b -> Maybe (Int, b))
-  -> Int -> IntMap (NonEmpty a) -> IntMap (NonEmpty a)
+  :: Ord prio
+  => (forall b. Map prio b -> Maybe (prio, b))
+  -> Int -> Map prio (NonEmpty a) -> Map prio (NonEmpty a)
 drop lookup n = go 0
   where
     go sz mOut
@@ -276,95 +285,95 @@ drop lookup n = go 0
       | otherwise = mOut
 
 -- | Map a function over all elements in the queue.
-map :: (a -> b) -> IntMinMaxQueue a -> IntMinMaxQueue b
+map :: (a -> b) -> MinMaxQueue prio a -> MinMaxQueue prio b
 map = mapWithPriority . const
 
 -- | Map a function over all elements in the queue.
-mapWithPriority :: (Prio -> a -> b) -> IntMinMaxQueue a -> IntMinMaxQueue b
-mapWithPriority f (IntMinMaxQueue sz ms m) =
-  IntMinMaxQueue sz ms (Map.mapWithKey (fmap . f) m)
+mapWithPriority :: (prio -> a -> b) -> MinMaxQueue prio a -> MinMaxQueue prio b
+mapWithPriority f (MinMaxQueue sz ms m) =
+  MinMaxQueue sz ms (Map.mapWithKey (fmap . f) m)
 
 -- | Fold the elements in the map using the given right-associative
 -- binary operator, such that @'foldr' f z == 'Prelude.foldr' f z . 'elems'@.
-foldr :: (a -> b -> b) -> b -> IntMinMaxQueue a -> b
+foldr :: (a -> b -> b) -> b -> MinMaxQueue prio a -> b
 foldr = foldrWithPriority . const
 
 -- | Fold the elements in the map using the given left-associative
 -- binary operator, such that @'foldl' f z == 'Prelude.foldl' f z . 'elems'@.
-foldl :: (a -> b -> a) -> a -> IntMinMaxQueue b -> a
+foldl :: (a -> b -> a) -> a -> MinMaxQueue prio b -> a
 foldl = foldlWithPriority . (const .)
 
 -- | Fold the elements in the map using the given right-associative
 -- binary operator, such that
 -- @'foldrWithPriority' f z == 'Prelude.foldr' ('uncurry' f) z . 'toAscList'@.
-foldrWithPriority :: (Prio -> a -> b -> b) -> b -> IntMinMaxQueue a -> b
-foldrWithPriority f b (IntMinMaxQueue _ _ m) = Map.foldrWithKey f' b m
+foldrWithPriority :: (prio -> a -> b -> b) -> b -> MinMaxQueue prio a -> b
+foldrWithPriority f b (MinMaxQueue _ _ m) = Map.foldrWithKey f' b m
   where
     f' = flip . Foldable.foldr . f
 
 -- | Fold the elements in the map using the given left-associative
 -- binary operator, such that
 -- @'foldlWithPriority' f z == 'Prelude.foldr' ('uncurry' . f) z . 'toAscList'@.
-foldlWithPriority :: (a -> Prio -> b -> a) -> a -> IntMinMaxQueue b -> a
-foldlWithPriority f a (IntMinMaxQueue _ _ m) = Map.foldlWithKey f' a m
+foldlWithPriority :: (a -> prio -> b -> a) -> a -> MinMaxQueue prio b -> a
+foldlWithPriority f a (MinMaxQueue _ _ m) = Map.foldlWithKey f' a m
   where
     f' = flip (Foldable.foldl . flip f)
 
 -- | A strict version of 'foldr'. Each application of the
 -- operator is evaluated before using the result in the next application.
 -- This function is strict in the starting value.
-foldr' :: (a -> b -> b) -> b -> IntMinMaxQueue a -> b
+foldr' :: (a -> b -> b) -> b -> MinMaxQueue prio a -> b
 foldr' = foldrWithPriority' . const
 
 -- | A strict version of 'foldl'. Each application of the
 -- operator is evaluated before using the result in the next application.
 -- This function is strict in the starting value.
-foldl' :: (a -> b -> a) -> a -> IntMinMaxQueue b -> a
+foldl' :: (a -> b -> a) -> a -> MinMaxQueue prio b -> a
 foldl' = foldlWithPriority' . (const .)
 
 -- | A strict version of 'foldrWithPriority'. Each application of the
 -- operator is evaluated before using the result in the next application.
 -- This function is strict in the starting value.
-foldrWithPriority' :: (Prio -> a -> b -> b) -> b -> IntMinMaxQueue a -> b
-foldrWithPriority' f b (IntMinMaxQueue _ _ m) = Map.foldrWithKey' f' b m
+foldrWithPriority' :: (prio -> a -> b -> b) -> b -> MinMaxQueue prio a -> b
+foldrWithPriority' f b (MinMaxQueue _ _ m) = Map.foldrWithKey' f' b m
   where
     f' = flip . Foldable.foldr . f
 
 -- | A strict version of 'foldlWithPriority'. Each application of the
 -- operator is evaluated before using the result in the next application.
 -- This function is strict in the starting value.
-foldlWithPriority' :: (a -> Prio -> b -> a) -> a -> IntMinMaxQueue b -> a
-foldlWithPriority' f a (IntMinMaxQueue _ _ m) = Map.foldlWithKey' f' a m
+foldlWithPriority' :: (a -> prio -> b -> a) -> a -> MinMaxQueue prio b -> a
+foldlWithPriority' f a (MinMaxQueue _ _ m) = Map.foldlWithKey' f' a m
   where
     f' = flip (Foldable.foldl' . flip f)
 
 -- | Fold the elements in the queue using the given monoid, such that
 -- @'foldMapWithPriority' f == 'Foldable.foldMap' (uncurry f) . 'elems'@.
-foldMapWithPriority :: Monoid m => (Prio -> a -> m) -> IntMinMaxQueue a -> m
-foldMapWithPriority f (IntMinMaxQueue _ _ m) =
+foldMapWithPriority :: Monoid m => (prio -> a -> m) -> MinMaxQueue prio a -> m
+foldMapWithPriority f (MinMaxQueue _ _ m) =
   Map.foldMapWithKey (Foldable.foldMap . f) m
 
 -- | Elements in the queue in ascending order of priority.
 -- Elements with the same priority are returned in no particular order.
-elems :: IntMinMaxQueue a -> [a]
-elems (IntMinMaxQueue _ _ m) = Foldable.foldMap Nel.toList m
+elems :: MinMaxQueue prio a -> [a]
+elems (MinMaxQueue _ _ m) = Foldable.foldMap Nel.toList m
 
 -- | An alias for 'toAscList'.
-toList :: IntMinMaxQueue a -> [(Prio, a)]
+toList :: MinMaxQueue prio a -> [(prio, a)]
 toList = toAscList
 
 -- | Convert the queue to a list in ascending order of priority.
 -- Elements with the same priority are returned in no particular order.
-toAscList :: IntMinMaxQueue a -> [(Prio, a)]
-toAscList (IntMinMaxQueue _ _ m) =
+toAscList :: MinMaxQueue prio a -> [(prio, a)]
+toAscList (MinMaxQueue _ _ m) =
   Map.toAscList m >>= uncurry (\prio -> fmap (prio,) . Nel.toList)
 
 -- | Convert the queue to a list in descending order of priority.
 -- Elements with the same priority are returned in no particular order.
-toDescList :: IntMinMaxQueue a -> [(Prio, a)]
-toDescList (IntMinMaxQueue _ _ m) =
+toDescList :: MinMaxQueue prio a -> [(prio, a)]
+toDescList (MinMaxQueue _ _ m) =
   Map.toDescList m >>= uncurry (\prio -> fmap (prio,) . Nel.toList)
 
--- | /O(n)/. Convert the queue to an 'IntMap'.
-toMap :: IntMinMaxQueue a -> IntMap (NonEmpty a)
-toMap (IntMinMaxQueue _ _ m) = m
+-- | /O(n)/. Convert the queue to an 'Map'.
+toMap :: MinMaxQueue prio a -> Map prio (NonEmpty a)
+toMap (MinMaxQueue _ _ m) = m
