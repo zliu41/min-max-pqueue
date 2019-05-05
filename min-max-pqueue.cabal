@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4e04fc9e4049925c16abdce6bbcb1124332df06d3236a6bf699e310f56c1b17c
+-- hash: 8fc7f7a3f93144c8a9f7f4c7546020e7457dc5de644370b647b341630a46386f
 
 name:           min-max-pqueue
 version:        0.1.0.0
@@ -60,6 +60,7 @@ benchmark benchmark
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      SeqQueue
       Paths_min_max_pqueue
   hs-source-dirs:
       benchmark

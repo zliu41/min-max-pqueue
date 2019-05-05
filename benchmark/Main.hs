@@ -6,6 +6,7 @@ import           System.Random
 
 import qualified Data.IntMinMaxQueue as IPQ
 import qualified Data.MinMaxQueue as PQ
+import qualified SeqQueue as SQ
 
 bench :: [Criterion.Benchmark]
 bench =
@@ -26,6 +27,11 @@ bench =
       Criterion.nf (unfoldr PQ.pollMin) (PQ.fromListWith id randomElems)
   , Criterion.bench "pq-rand-max" $
       Criterion.nf (unfoldr PQ.pollMax) (PQ.fromListWith id randomElems)
+
+  , Criterion.bench "sq-asc-min" $
+      Criterion.nf (unfoldr SQ.pollMin) (SQ.fromList ascElems)
+  , Criterion.bench "sq-rand-min" $
+      Criterion.nf (unfoldr SQ.pollMin) (SQ.fromList randomElems)
   ]
 
 main :: IO ()
