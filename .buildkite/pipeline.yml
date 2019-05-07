@@ -1,0 +1,8 @@
+steps:
+  - label: GHC 8.6.4
+    command: "stack --resolver lts-13.19 test"
+    branches: "master"
+
+  - label: GHC 8.4.4
+    command: "stack --resolver lts-12.26 test"
+    branches: "master"
