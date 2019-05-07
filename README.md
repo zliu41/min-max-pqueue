@@ -6,8 +6,8 @@ and its greatest element. Also known as
 
 This library provides two variants of min-max priority queues:
 
-- `MinMaxQueue prio a`, a general-purpose min-max priority queue.
-- `IntMinMaxQueue a`, a min-max priority queue where priority values are integers.
+- [`MinMaxQueue prio a`](https://hackage.haskell.org/package/min-max-pqueue/docs/Data-MinMaxQueue.html), a general-purpose min-max priority queue.
+- [`IntMinMaxQueue a`](https://hackage.haskell.org/package/min-max-pqueue/docs/Data-IntMinMaxQueue.html), a min-max priority queue where priority values are integers.
 
 A min-max priority queue can be configured with a maximum size. Each time an insertion
 causes the queue to grow beyond the size limit, the greatest element

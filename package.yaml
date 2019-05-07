@@ -17,12 +17,11 @@ category:            Data Structures
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Min-max priority queue, also known as double-ended priority queue.
+description:         Min-max priority queues, also known as double-ended priority queues.
 
 dependencies:
 - base >= 4.7 && < 5
-- containers
-- integer-logarithms
+- containers >= 0.5.11 && < 0.7
 
 library:
   source-dirs: src
@@ -32,10 +31,10 @@ benchmarks:
     main: Main.hs
     source-dirs: benchmark
     dependencies:
-      - deepseq
-      - criterion
+      - criterion >= 1.4.1 && < 1.6
+      - integer-logarithms >= 1.0.2.2 && < 1.1
       - min-max-pqueue
-      - random
+      - random >= 1.1 && < 1.2
 
 tests:
   hedgehog:
@@ -46,5 +45,5 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-      - hedgehog
+      - hedgehog >= 0.6.1 && < 0.7
       - min-max-pqueue

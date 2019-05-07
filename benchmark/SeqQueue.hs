@@ -1,7 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 
 -----------------------------------------------------------------------------
--- | A min-maq priority queue implemented using a min-max heap
+-- | A min-max priority queue implemented using a min-max heap
 -- backed by a 'Seq', for benchmarking purposes.
 module SeqQueue (fromList, pollMin) where
 
