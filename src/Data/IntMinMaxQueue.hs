@@ -2,6 +2,36 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
 
+-----------------------------------------------------------------------------
+-- |
+-- Module      :  Data.IntMinMaxQueue
+-- Maintainer  :  Ziyang Liu <free@cofree.io>
+--
+-- Double-ended priority queues where priority values are integers, allowing
+-- efficient retrieval and removel from both ends of the queue.
+--
+-- A queue can be configured with a maximum size. Each time an insertion
+-- causes the queue to grow beyond the size limit, the greatest element
+-- will be automatically removed (rather than rejecting the insertion).
+--
+-- The implementation is backed by an @'IntMap' ('NonEmpty' a)@. This means
+-- that certain operations, including 'peekMin', 'peekMax' and 'fromList',
+-- are asymptotically more expensive than a mutable array based implementation.
+-- In a pure language like Haskell, a
+-- mutable array based implementation would be impure
+-- and need to operate inside monads. And in many applications, regardless
+-- of language, the additional time complexity would be a small or negligible
+-- price to pay to avoid destructive updates anyway.
+--
+-- If you only access one end of the queue (i.e., you need a regular
+-- priority queue), an implementation based on a kind of heap that is more
+-- amenable to purely functional implementations, such as binomial heap
+-- and pairing heap, is /potentially/ more efficient. But always benchmark
+-- if performance is important; in my experience @Map@ /always/ wins, even for
+-- regular priority queues.
+--
+-- See <https://github.com/zliu41/min-max-pqueue/blob/master/README.md README.md>
+-- for more information.
 module Data.IntMinMaxQueue (
   -- * IntMinMaxQueue type
     IntMinMaxQueue
@@ -163,7 +193,8 @@ withMaxSize :: IntMinMaxQueue a -> Int -> IntMinMaxQueue a
 withMaxSize q ms = IntMinMaxQueue sz (Just ms) m
   where (IntMinMaxQueue sz _ m) = takeMin ms q
 
--- | /O(1)/. The size limit of the queue, if exists.
+-- | /O(1)/. The size limit of the queue. It returns either @Nothing@ (if
+-- the queue does not have a size limit) or @Just n@ where @n >= 0@.
 maxSize :: IntMinMaxQueue a -> Maybe Int
 maxSize (IntMinMaxQueue _ ms _) = max 0 <$> ms
 
@@ -284,17 +315,17 @@ mapWithPriority :: (Prio -> a -> b) -> IntMinMaxQueue a -> IntMinMaxQueue b
 mapWithPriority f (IntMinMaxQueue sz ms m) =
   IntMinMaxQueue sz ms (Map.mapWithKey (fmap . f) m)
 
--- | Fold the elements in the map using the given right-associative
+-- | Fold the elements in the queue using the given right-associative
 -- binary operator, such that @'foldr' f z == 'Prelude.foldr' f z . 'elems'@.
 foldr :: (a -> b -> b) -> b -> IntMinMaxQueue a -> b
 foldr = foldrWithPriority . const
 
--- | Fold the elements in the map using the given left-associative
+-- | Fold the elements in the queue using the given left-associative
 -- binary operator, such that @'foldl' f z == 'Prelude.foldl' f z . 'elems'@.
 foldl :: (a -> b -> a) -> a -> IntMinMaxQueue b -> a
 foldl = foldlWithPriority . (const .)
 
--- | Fold the elements in the map using the given right-associative
+-- | Fold the elements in the queue using the given right-associative
 -- binary operator, such that
 -- @'foldrWithPriority' f z == 'Prelude.foldr' ('uncurry' f) z . 'toAscList'@.
 foldrWithPriority :: (Prio -> a -> b -> b) -> b -> IntMinMaxQueue a -> b
@@ -302,7 +333,7 @@ foldrWithPriority f b (IntMinMaxQueue _ _ m) = Map.foldrWithKey f' b m
   where
     f' = flip . Foldable.foldr . f
 
--- | Fold the elements in the map using the given left-associative
+-- | Fold the elements in the queue using the given left-associative
 -- binary operator, such that
 -- @'foldlWithPriority' f z == 'Prelude.foldr' ('uncurry' . f) z . 'toAscList'@.
 foldlWithPriority :: (a -> Prio -> b -> a) -> a -> IntMinMaxQueue b -> a
