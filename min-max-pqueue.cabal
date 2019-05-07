@@ -2,11 +2,13 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8fc7f7a3f93144c8a9f7f4c7546020e7457dc5de644370b647b341630a46386f
+-- hash: 8dc3f20bbec160e728d03e0f81d03d92174b12f05313704e126690e360e1d3de
 
 name:           min-max-pqueue
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/zliu41/min-max-pqueue#readme>
+synopsis:       Double-ended priority queues.
+description:    Min-max priority queue, also known as double-ended priority queue.
+category:       Data Structures
 homepage:       https://github.com/zliu41/min-max-pqueue#readme
 bug-reports:    https://github.com/zliu41/min-max-pqueue/issues
 author:         Ziyang Liu <free@cofree.io>
