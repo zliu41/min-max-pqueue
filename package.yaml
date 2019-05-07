@@ -17,7 +17,7 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/zliu41/min-max-pqueue#readme>
+description:         Min-max priority queue, also known as double-ended priority queue.
 
 dependencies:
 - base >= 4.7 && < 5
