@@ -9,7 +9,7 @@ let
       }:
       mkDerivation {
         pname = "min-max-pqueue";
-        version = "0.1.0.1";
+        version = "0.1.0.2";
         src = ./.;
         libraryHaskellDepends = [ base containers ];
         testHaskellDepends = [ base containers hedgehog ];

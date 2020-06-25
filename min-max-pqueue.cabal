@@ -1,7 +1,7 @@
 cabal-version:  2.4
 
 name:           min-max-pqueue
-version:        0.1.0.1
+version:        0.1.0.2
 synopsis:       Double-ended priority queues.
 description:    Min-max priority queues, also known as double-ended priority queues.
 category:       Data Structures
