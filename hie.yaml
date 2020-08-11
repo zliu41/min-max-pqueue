@@ -1,0 +1,12 @@
+cradle:
+  multi:
+    - path: "./"
+      config:
+        cradle:
+          cabal:
+            - path: "./src"
+              component: "lib:min-max-pqueue"
+            - path: "./test/hedgehog"
+              component: "test:hedgehog"
+            - path: "./benchmark"
+              component: "bench:benchmark"
