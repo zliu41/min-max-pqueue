@@ -9,11 +9,11 @@ homepage:       https://github.com/zliu41/min-max-pqueue
 bug-reports:    https://github.com/zliu41/min-max-pqueue/issues
 author:         Ziyang Liu <free@cofree.io>
 maintainer:     Ziyang Liu <free@cofree.io>
-copyright:      2019-2020 Ziyang Liu
+copyright:      2019-2021 Ziyang Liu
 license:        BSD-3-Clause
 license-file:   LICENSE
 build-type:     Simple
-tested-with:    GHC==8.10.1, GHC==8.8.4, GHC==8.6.5
+tested-with:    GHC==9.0.1, GHC==8.10.4, GHC==8.8.4, GHC==8.6.5
 
 extra-source-files:
     README.md
