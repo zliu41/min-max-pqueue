@@ -13,7 +13,7 @@ copyright:      2019-2021 Ziyang Liu
 license:        BSD-3-Clause
 license-file:   LICENSE
 build-type:     Simple
-tested-with:    GHC==9.0.1, GHC==8.10.4, GHC==8.8.4, GHC==8.6.5
+tested-with:    GHC==9.2.1, GHC==9.0.1, GHC==8.10.7, GHC==8.8.4, GHC==8.6.5
 
 extra-source-files:
     README.md
