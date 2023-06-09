@@ -102,7 +102,7 @@ import qualified Data.IntMap.Strict as Map
 import           Data.List.NonEmpty (NonEmpty(..), (<|))
 import qualified Data.List.NonEmpty as Nel
 
-import Prelude hiding (drop, foldl, foldr, lookup, map, null, take)
+import Prelude hiding (Foldable(..), drop, lookup, map, take)
 import qualified Prelude
 
 type Size = Int
@@ -172,7 +172,7 @@ fromListWith f = Foldable.foldr (insert f) empty
 
 -- | /O(n)/ (due to calculating the queue size).
 fromMap :: IntMap (NonEmpty a) -> IntMinMaxQueue a
-fromMap m = IntMinMaxQueue (sum (fmap length m)) Nothing m
+fromMap m = IntMinMaxQueue (Foldable.sum (fmap Nel.length m)) Nothing m
 
 -- | /O(1)/. Is the queue empty?
 null :: IntMinMaxQueue a -> Bool
@@ -300,7 +300,7 @@ drop lookup n = go 0
     go sz mOut
       | sz >= n = mOut
       | Just (prio, hd :| tl) <- lookup mOut =
-          let len = length tl + 1
+          let len = Foldable.length tl + 1
            in if sz + len <= n
                 then go (sz + len) (Map.delete prio mOut)
                 else Map.insert prio (hd :| Prelude.drop (n - sz) tl) mOut
